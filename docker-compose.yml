@@ -1,0 +1,23 @@
+services:
+  claude-voice:
+    build: .
+    container_name: claude-voice
+    restart: unless-stopped
+    ports:
+      - "${VOICE_PORT:-8765}:8765"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - WHISPER_HOST=${WHISPER_HOST:-whisper}
+      - WHISPER_PORT=${WHISPER_PORT:-10300}
+      - PIPER_HOST=${PIPER_HOST:-piper}
+      - PIPER_PORT=${PIPER_PORT:-10200}
+      - TZ=Europe/Zurich
+    volumes:
+      - ./data:/data
+    networks:
+      - voice-network
+
+networks:
+  voice-network:
+    external: true
+    name: proxmox-services_default

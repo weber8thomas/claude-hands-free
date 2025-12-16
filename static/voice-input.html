@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Voice Input - MCP Interface</title>
+    <style>
+        body {
+            font-family: system-ui;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        #status {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 18px;
+        }
+        .idle { background: #16213e; }
+        .waiting { background: #0f3460; color: #4a90e2; }
+        .recording { background: #c21010; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+        }
+        #recordBtn {
+            background: #e94560;
+            color: white;
+        }
+        #recordBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 Voice Input for Claude Code</h1>
+    <div id="status" class="idle">Waiting for Claude to request voice input...</div>
+    <div id="controls" style="text-align: center; display: none;">
+        <button id="recordBtn">🎤 Start Recording</button>
+    </div>
+
+    <script>
+        let audioContext, mediaStream, recorder;
+        let isRecording = false;
+        let currentRequestId = null;
+
+        const statusDiv = document.getElementById('status');
+        const controlsDiv = document.getElementById('controls');
+        const recordBtn = document.getElementById('recordBtn');
+
+        // Poll for pending requests
+        async function checkForRequests() {
+            try {
+                const resp = await fetch('/api/pending-requests');
+                const data = await resp.json();
+
+                if (data.requests.length > 0 && !currentRequestId) {
+                    // New request available - claim it immediately
+                    const requestId = data.requests[0].id;
+
+                    // Claim the request to remove it from pending list
+                    const claimResp = await fetch(`/api/claim-request/${requestId}`, {
+                        method: 'POST'
+                    });
+
+                    if (!claimResp.ok) {
+                        console.error('Failed to claim request');
+                        return;
+                    }
+
+                    currentRequestId = requestId;
+                    statusDiv.textContent = `Claude is waiting for voice input (${data.requests[0].language})`;
+                    statusDiv.className = 'waiting';
+                    controlsDiv.style.display = 'block';
+
+                    // Auto-start recording
+                    setTimeout(() => recordBtn.click(), 500);
+                }
+            } catch (e) {
+                console.error('Poll error:', e);
+            }
+        }
+
+        // Poll every 1 second
+        setInterval(checkForRequests, 1000);
+
+        // Recording logic (same Web Audio API as before)
+        recordBtn.onclick = async () => {
+            if (!isRecording) {
+                // Start recording
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1 }
+                });
+
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                const chunks = [];
+                processor.onaudioprocess = (e) => {
+                    chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+                };
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                recorder = { processor, source, chunks };
+                isRecording = true;
+                recordBtn.textContent = '⏹️ Stop & Send';
+                statusDiv.textContent = 'Recording... Speak now!';
+                statusDiv.className = 'recording';
+
+            } else {
+                // Stop and send
+                recorder.processor.disconnect();
+                recorder.source.disconnect();
+                mediaStream.getTracks().forEach(t => t.stop());
+
+                statusDiv.textContent = 'Encoding and sending...';
+                statusDiv.className = 'waiting';
+
+                // Encode WAV
+                const totalLen = recorder.chunks.reduce((a, c) => a + c.length, 0);
+                const combined = new Float32Array(totalLen);
+                let offset = 0;
+                for (const chunk of recorder.chunks) {
+                    combined.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                const wavBlob = encodeWAV(combined, 16000);
+
+                // Send to server
+                const fd = new FormData();
+                fd.append('audio', wavBlob, 'voice.wav');
+
+                await fetch(`/api/submit-voice/${currentRequestId}`, {
+                    method: 'POST',
+                    body: fd
+                });
+
+                // Reset
+                isRecording = false;
+                recordBtn.textContent = '🎤 Start Recording';
+                statusDiv.textContent = '✅ Voice input sent to Claude!';
+                statusDiv.className = 'idle';
+                controlsDiv.style.display = 'none';
+                currentRequestId = null;
+
+                setTimeout(() => {
+                    statusDiv.textContent = 'Waiting for Claude to request voice input...';
+                }, 2000);
+            }
+        };
+
+        // WAV encoder
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            // PCM samples
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+    </script>
+</body>
+</html>

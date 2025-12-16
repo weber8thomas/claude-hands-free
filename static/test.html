@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Audio Test</title>
+</head>
+<body>
+    <h1>Audio Recording Test</h1>
+    <button id="btn">Record & Upload</button>
+    <p id="status">Ready</p>
+    <script>
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        let recording = false;
+        let mediaStream, audioContext, recorder;
+
+        btn.onclick = async () => {
+            if (!recording) {
+                status.textContent = 'Starting...';
+
+                // Get microphone
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1 }
+                });
+
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                const chunks = [];
+                processor.onaudioprocess = (e) => {
+                    chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+                };
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                recorder = { processor, source, chunks };
+                recording = true;
+                btn.textContent = 'Stop & Send';
+                status.textContent = 'Recording...';
+            } else {
+                status.textContent = 'Encoding...';
+
+                // Stop
+                recorder.processor.disconnect();
+                recorder.source.disconnect();
+                mediaStream.getTracks().forEach(t => t.stop());
+
+                // Encode WAV
+                const totalLen = recorder.chunks.reduce((a, c) => a + c.length, 0);
+                const combined = new Float32Array(totalLen);
+                let offset = 0;
+                for (const chunk of recorder.chunks) {
+                    combined.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                const buffer = new ArrayBuffer(44 + combined.length * 2);
+                const view = new DataView(buffer);
+
+                // WAV header
+                const writeStr = (off, str) => {
+                    for (let i = 0; i < str.length; i++) {
+                        view.setUint8(off + i, str.charCodeAt(i));
+                    }
+                };
+
+                writeStr(0, 'RIFF');
+                view.setUint32(4, 36 + combined.length * 2, true);
+                writeStr(8, 'WAVE');
+                writeStr(12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, 1, true);
+                view.setUint32(24, 16000, true);
+                view.setUint32(28, 32000, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeStr(36, 'data');
+                view.setUint32(40, combined.length * 2, true);
+
+                let pos = 44;
+                for (let i = 0; i < combined.length; i++, pos += 2) {
+                    const s = Math.max(-1, Math.min(1, combined[i]));
+                    view.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+
+                const blob = new Blob([buffer], { type: 'audio/wav' });
+
+                // Upload
+                status.textContent = 'Uploading...';
+                const fd = new FormData();
+                fd.append('audio', blob, 'test.wav');
+
+                const resp = await fetch('/voice-text', { method: 'POST', body: fd });
+                const data = await resp.json();
+
+                status.textContent = 'Transcript: ' + data.transcript + '\n\nResponse: ' + data.response;
+
+                recording = false;
+                btn.textContent = 'Record & Upload';
+            }
+        };
+    </script>
+</body>
+</html>

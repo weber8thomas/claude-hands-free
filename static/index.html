@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .record-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        #recordBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            font-size: 48px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        #recordBtn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        #recordBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #recordBtn.recording {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status.idle {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .status.recording {
+            background: #ffe0e0;
+            color: #c00;
+        }
+
+        .status.processing {
+            background: #e0f0ff;
+            color: #0066cc;
+        }
+
+        .transcript-section, .response-section {
+            margin: 20px 0;
+        }
+
+        .section-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .content-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            min-height: 60px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .content-box:empty::before {
+            content: "...";
+            color: #ccc;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .instructions li {
+            margin: 5px 0;
+        }
+
+        .session-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .session-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .session-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .error {
+            background: #ffe0e0;
+            color: #c00;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #c00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Claude Voice Assistant</h1>
+        <p class="subtitle">Speak in French, get text responses</p>
+        <p style="font-size: 10px; color: #999;">v2.0 - Web Audio API</p>
+
+        <div class="instructions">
+            <strong>How to use:</strong>
+            <ul>
+                <li>Click the microphone to start recording</li>
+                <li>Speak your question in French</li>
+                <li>Click again to stop and send</li>
+                <li>Conversation context is maintained automatically</li>
+            </ul>
+        </div>
+
+        <div class="record-section">
+            <button id="recordBtn" title="Click to record">🎤</button>
+            <div id="status" class="status idle">Click microphone to start</div>
+        </div>
+
+        <div class="transcript-section" id="transcriptSection" style="display: none;">
+            <div class="section-title">You said:</div>
+            <div id="transcript" class="content-box"></div>
+        </div>
+
+        <div class="response-section" id="responseSection" style="display: none;">
+            <div class="section-title">Claude responds:</div>
+            <div id="response" class="content-box"></div>
+        </div>
+
+        <div class="session-controls">
+            <button class="session-btn" onclick="newConversation()">New Conversation</button>
+        </div>
+    </div>
+
+    <script>
+        let audioContext;
+        let mediaStream;
+        let recorder;
+        let isRecording = false;
+        let sessionId = null;
+
+        const recordBtn = document.getElementById('recordBtn');
+        const status = document.getElementById('status');
+        const transcriptSection = document.getElementById('transcriptSection');
+        const responseSection = document.getElementById('responseSection');
+        const transcriptDiv = document.getElementById('transcript');
+        const responseDiv = document.getElementById('response');
+
+        function setStatus(message, type = 'idle') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            responseSection.style.display = 'block';
+            responseDiv.parentElement.insertBefore(errorDiv, responseDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        // Simple WAV encoder
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            // PCM samples
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        async function startRecording() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                const audioChunks = [];
+                processor.onaudioprocess = (e) => {
+                    const samples = e.inputBuffer.getChannelData(0);
+                    audioChunks.push(new Float32Array(samples));
+                };
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                recorder = { processor, audioChunks, source };
+                isRecording = true;
+                recordBtn.classList.add('recording');
+                recordBtn.textContent = '⏹️';
+                setStatus('Recording... Click to stop', 'recording');
+
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                showError('Could not access microphone. Please grant permission.');
+            }
+        }
+
+        async function stopRecording() {
+            if (recorder && isRecording) {
+                isRecording = false;
+                recordBtn.classList.remove('recording');
+                recordBtn.textContent = '🎤';
+                setStatus('Processing...', 'processing');
+
+                // Stop recording
+                recorder.processor.disconnect();
+                recorder.source.disconnect();
+                mediaStream.getTracks().forEach(track => track.stop());
+
+                // Combine chunks
+                const totalLength = recorder.audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+                const combined = new Float32Array(totalLength);
+                let offset = 0;
+                for (const chunk of recorder.audioChunks) {
+                    combined.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                // Create WAV blob
+                const wavBlob = encodeWAV(combined, 16000);
+                await sendAudio(wavBlob);
+
+                recorder = null;
+            }
+        }
+
+        async function sendAudio(audioBlob) {
+            console.log('sendAudio called, blob size:', audioBlob.size);
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+            if (sessionId) {
+                formData.append('session_id', sessionId);
+            }
+
+            try {
+                recordBtn.disabled = true;
+                console.log('Sending fetch request...');
+                const response = await fetch('/voice-text', {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('Response received:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error: ${response.status} - ${errorText}`);
+                }
+
+                const data = await response.json();
+
+                // Save session ID
+                if (data.session_id) {
+                    sessionId = data.session_id;
+                }
+
+                // Display transcript
+                if (data.transcript) {
+                    transcriptSection.style.display = 'block';
+                    transcriptDiv.textContent = data.transcript;
+                }
+
+                // Display response
+                if (data.response) {
+                    responseSection.style.display = 'block';
+                    responseDiv.textContent = data.response;
+                }
+
+                setStatus('Ready - Click to record', 'idle');
+
+            } catch (error) {
+                console.error('Error sending audio:', error);
+                showError(`Error: ${error.message}`);
+                setStatus('Error - Click to try again', 'idle');
+            } finally {
+                recordBtn.disabled = false;
+            }
+        }
+
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        async function newConversation() {
+            sessionId = null;
+            transcriptDiv.textContent = '';
+            responseDiv.textContent = '';
+            transcriptSection.style.display = 'none';
+            responseSection.style.display = 'none';
+            setStatus('New conversation started', 'idle');
+            setTimeout(() => setStatus('Click microphone to start', 'idle'), 2000);
+        }
+
+        // Check server on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/health');
+                if (response.ok) {
+                    setStatus('Ready - Click microphone to start', 'idle');
+                } else {
+                    setStatus('Server error - Please refresh', 'idle');
+                }
+            } catch (error) {
+                showError('Cannot connect to server');
+            }
+        });
+    </script>
+</body>
+</html>

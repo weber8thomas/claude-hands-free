@@ -1,0 +1,28 @@
+# Service-specific .gitignore
+
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv/
+venv/
+
+# Data
+data/
+sessions/
+*.wav
+*.mp3
+*.log
+
+# Temp
+/tmp/
+
+# SSL Certificates (self-signed, regenerate locally)
+*.pem
+cert.pem
+key.pem

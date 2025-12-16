@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Debug Audio Test v3</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        #log { background: #f0f0f0; padding: 10px; margin: 20px 0; max-height: 400px; overflow-y: scroll; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Debug Audio Test v3 - NEW VERSION</h1>
+    <p>This is version 3 - if you don't see this text, clear your cache!</p>
+    <button id="btn">Record & Upload</button>
+    <p id="status">Ready</p>
+    <div id="log"></div>
+
+    <script>
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        let recording = false;
+        let mediaStream, audioContext, recorder;
+
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${time}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        log('Page loaded - v3', 'success');
+
+        btn.onclick = async () => {
+            if (!recording) {
+                log('Start button clicked');
+                status.textContent = 'Starting...';
+
+                try {
+                    log('Requesting microphone access...');
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        audio: { sampleRate: 16000, channelCount: 1 }
+                    });
+                    log('Microphone access granted', 'success');
+
+                    audioContext = new AudioContext({ sampleRate: 16000 });
+                    const source = audioContext.createMediaStreamSource(mediaStream);
+                    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                    const chunks = [];
+                    processor.onaudioprocess = (e) => {
+                        chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+                    };
+
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+
+                    recorder = { processor, source, chunks };
+                    recording = true;
+                    btn.textContent = 'Stop & Send';
+                    status.textContent = 'Recording...';
+                    log('Recording started', 'success');
+                } catch (error) {
+                    log(`Error accessing microphone: ${error}`, 'error');
+                    status.textContent = 'Error: ' + error.message;
+                }
+            } else {
+                log('Stop button clicked');
+                status.textContent = 'Encoding...';
+
+                // Stop
+                recorder.processor.disconnect();
+                recorder.source.disconnect();
+                mediaStream.getTracks().forEach(t => t.stop());
+                log('Recording stopped');
+
+                // Encode WAV
+                const totalLen = recorder.chunks.reduce((a, c) => a + c.length, 0);
+                log(`Total samples: ${totalLen}`);
+
+                const combined = new Float32Array(totalLen);
+                let offset = 0;
+                for (const chunk of recorder.chunks) {
+                    combined.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                const buffer = new ArrayBuffer(44 + combined.length * 2);
+                const view = new DataView(buffer);
+
+                // WAV header
+                const writeStr = (off, str) => {
+                    for (let i = 0; i < str.length; i++) {
+                        view.setUint8(off + i, str.charCodeAt(i));
+                    }
+                };
+
+                writeStr(0, 'RIFF');
+                view.setUint32(4, 36 + combined.length * 2, true);
+                writeStr(8, 'WAVE');
+                writeStr(12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, 1, true);
+                view.setUint32(24, 16000, true);
+                view.setUint32(28, 32000, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeStr(36, 'data');
+                view.setUint32(40, combined.length * 2, true);
+
+                let pos = 44;
+                for (let i = 0; i < combined.length; i++, pos += 2) {
+                    const s = Math.max(-1, Math.min(1, combined[i]));
+                    view.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+
+                const blob = new Blob([buffer], { type: 'audio/wav' });
+                log(`WAV encoded: ${blob.size} bytes`, 'success');
+
+                // Upload
+                status.textContent = 'Uploading...';
+                log('Creating FormData...');
+                const fd = new FormData();
+                fd.append('audio', blob, 'test.wav');
+
+                log('Sending fetch request to /voice-text...');
+                try {
+                    const resp = await fetch('/voice-text', {
+                        method: 'POST',
+                        body: fd
+                    });
+                    log(`Response received: ${resp.status} ${resp.statusText}`, 'success');
+
+                    const data = await resp.json();
+                    log(`Response data: ${JSON.stringify(data)}`, 'success');
+
+                    status.textContent = 'Transcript: ' + data.transcript + '\n\nResponse: ' + data.response;
+                } catch (error) {
+                    log(`Fetch error: ${error}`, 'error');
+                    status.textContent = 'Error: ' + error.message;
+                }
+
+                recording = false;
+                btn.textContent = 'Record & Upload';
+                log('Complete');
+            }
+        };
+    </script>
+</body>
+</html>
