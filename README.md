@@ -9,7 +9,7 @@ Ever tried to:
 - 🏃 Debug code while on the treadmill? (typing + running = broken ankles)
 - 🧘 Practice your "hands-free workday" because your wrists hurt? (RSI is real, folks)
 - 🛋️ Casually chat with Claude from across the room? (peak laziness achieved)
-- 👶 Code with a baby in your arms? (multitasking level: parent)
+- 👶 Code with a baby in your arms? (multitasking level: parent - yes, this repo author does this, no shame)
 
 **This MCP server lets you talk to Claude Code instead of typing.** No more keyboard gymnastics. Just speak your mind, and Claude listens.
 
