@@ -1,28 +1,28 @@
-# Claude Hands-Free - Voice Input MCP Server
+# MCP Hands-Free - Voice Input MCP Server
 
 > **"Why type when you can talk?"** - Every developer eating pizza while coding
 
 ## Why This Exists
 
 Ever tried to:
-- 🍕 Ask Claude a question while eating lunch? (greasy keyboards are NOT fun)
+- 🍕 Ask your AI assistant a question while eating lunch? (greasy keyboards are NOT fun)
 - 🏃 Debug code while on the treadmill? (typing + running = broken ankles)
 - 🧘 Practice your "hands-free workday" because your wrists hurt? (RSI is real, folks)
-- 🛋️ Casually chat with Claude from across the room? (peak laziness achieved)
+- 🛋️ Casually chat with your AI from across the room? (peak laziness achieved)
 - 👶 Code with a baby in your arms? (multitasking level: parent - yes, this repo author does this, no shame)
 
-**This MCP server lets you talk to Claude Code instead of typing.** No more keyboard gymnastics. Just speak your mind, and Claude listens.
+**This MCP server lets you talk to any MCP-compatible AI instead of typing.** No more keyboard gymnastics. Just speak your mind, and your AI assistant listens.
 
 Perfect for when your hands are busy, tired, dirty, or just... somewhere else.
 
 ---
 
-Hands-free voice input for Claude Code CLI using Whisper speech-to-text.
+Universal hands-free voice input for MCP-compatible AI assistants (Claude Code CLI, Gemini, Qwen, etc.) using Whisper speech-to-text.
 
 ## Architecture
 
 ```
-Claude Code CLI
+MCP Client (Claude, Gemini, Qwen, etc.)
   ↓ calls get_voice_input() MCP tool
 MCP Server (stdio)
   ↓ HTTP POST /api/request-voice
@@ -38,7 +38,7 @@ FastAPI Server
 MCP Server
   ↓ polls /api/result/{request_id}
   ↓ returns transcript
-Claude Code CLI
+MCP Client
   └─ receives transcript as user input
 ```
 
@@ -48,15 +48,15 @@ Claude Code CLI
 - **Multi-Language Support** - French, English, Spanish, German, Italian
 - **Browser-Based Recording** - No client software installation needed
 - **Whisper STT** - High-quality speech recognition via Wyoming protocol
-- **MCP Integration** - Seamless integration with Claude Code CLI
-- **Auto-Recording** - Browser automatically starts recording when Claude requests voice input
+- **Universal MCP Integration** - Works with any MCP-compatible AI client
+- **Auto-Recording** - Browser automatically starts recording when your AI requests voice input
 
 ## Prerequisites
 
 - **FastAPI Server** - Coordination server with Whisper integration
 - **Whisper Service** - Wyoming-compatible Whisper STT service (port 10300)
 - **Browser** - Any modern browser with microphone access
-- **Claude Code CLI** - With MCP server support
+- **MCP Client** - Any MCP-compatible AI assistant (Claude Code CLI, Gemini with MCP, etc.)
 
 ## Installation
 
@@ -67,12 +67,12 @@ Add to your `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "claude-voice": {
+    "voice-input": {
       "type": "stdio",
       "command": "uvx",
       "args": [
         "--from",
-        "/path/to/claude-voice/mcp-server",
+        "/path/to/mcp-hands-free/mcp-server",
         "claude-voice-mcp"
       ],
       "env": {
@@ -86,7 +86,7 @@ Add to your `.mcp.json`:
 ### 2. Start FastAPI Server
 
 ```bash
-cd /path/to/claude-voice
+cd /path/to/mcp-hands-free
 
 # Install Python dependencies
 pip3 install -r requirements.txt
@@ -121,12 +121,12 @@ Accept SSL certificate warning (self-signed) and grant microphone permissions.
 
 ### Basic Voice Input
 
-In Claude Code CLI:
+In your MCP client (Claude Code CLI, etc.):
 ```
 You: "Get my next request via voice"
 ```
 
-Claude calls `get_voice_input()` tool, browser auto-starts recording, you speak, transcript is returned.
+Your AI calls `get_voice_input()` tool, browser auto-starts recording, you speak, transcript is returned.
 
 ### With Language Parameter
 
@@ -140,8 +140,8 @@ You: "Get my next request via voice in English"
 You: Get my next request via voice
 [Browser automatically starts recording]
 You: [speaking] "List my vault secrets"
-Claude: Voice input received: "List my vault secrets"
-[Claude then uses vault MCP tool to list secrets]
+AI: Voice input received: "List my vault secrets"
+[AI then processes your request, using other MCP tools if needed]
 ```
 
 ## MCP Tool API
@@ -292,7 +292,7 @@ curl -k https://localhost:8766/health
 **Check .mcp.json path:**
 ```bash
 # Verify path to mcp-server directory is correct
-ls /path/to/claude-voice/mcp-server/pyproject.toml
+ls /path/to/mcp-hands-free/mcp-server/pyproject.toml
 ```
 
 ### Whisper Service Not Responding
@@ -319,7 +319,7 @@ curl http://localhost:10300/v1/services
 ## Files
 
 ```
-claude-voice/
+mcp-hands-free/
 ├── mcp-server/                    # MCP server package
 │   ├── pyproject.toml
 │   └── src/claude_voice_mcp/
@@ -371,7 +371,7 @@ Combine voice input with other MCP servers:
 ```
 You: Get my next request via voice
 [speaks] "What's in my vault?"
-Claude: [uses claude-voice to get input, then vault tool to query]
+AI: [uses voice input tool, then vault MCP tool to query]
 ```
 
 ## Resources
@@ -379,7 +379,16 @@ Claude: [uses claude-voice to get input, then vault tool to query]
 - **Model Context Protocol**: https://github.com/anthropics/mcp
 - **Whisper**: https://github.com/openai/whisper
 - **Wyoming Protocol**: https://github.com/rhasspy/wyoming
-- **Claude Code CLI**: https://claude.com/claude-code
+- **Claude Code CLI**: https://claude.com/claude-code (tested MCP client)
+
+## Compatibility
+
+This MCP server follows the standard **Model Context Protocol** specification and should work with any MCP-compatible client:
+
+- ✅ **Claude Code CLI** - Fully tested and working
+- 🔜 **Other MCP Clients** - Should work out of the box (Gemini, Qwen, custom implementations)
+
+If you test this with other MCP clients, please open an issue to share your experience!
 
 ## License
 
