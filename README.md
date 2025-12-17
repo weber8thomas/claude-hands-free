@@ -1,5 +1,22 @@
 # Claude Hands-Free - Voice Input MCP Server
 
+> **"Why type when you can talk?"** - Every developer eating pizza while coding
+
+## Why This Exists
+
+Ever tried to:
+- 🍕 Ask Claude a question while eating lunch? (greasy keyboards are NOT fun)
+- 🏃 Debug code while on the treadmill? (typing + running = broken ankles)
+- 🧘 Practice your "hands-free workday" because your wrists hurt? (RSI is real, folks)
+- 🛋️ Casually chat with Claude from across the room? (peak laziness achieved)
+- 👶 Code with a baby in your arms? (multitasking level: parent)
+
+**This MCP server lets you talk to Claude Code instead of typing.** No more keyboard gymnastics. Just speak your mind, and Claude listens.
+
+Perfect for when your hands are busy, tired, dirty, or just... somewhere else.
+
+---
+
 Hands-free voice input for Claude Code CLI using Whisper speech-to-text.
 
 ## Architecture
