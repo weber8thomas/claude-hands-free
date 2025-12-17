@@ -56,7 +56,7 @@ MCP Client
 - **FastAPI Server** - Coordination server with Whisper integration
 - **Whisper Service** - Wyoming-compatible Whisper STT service (port 10300)
 - **Browser** - Any modern browser with microphone access
-- **MCP Client** - Any MCP-compatible AI assistant (Claude Code CLI, Gemini with MCP, etc.)
+- **MCP Client** - Any MCP-compatible AI agent CLI (Claude Code, Gemini, Qwen, etc.)
 
 ## Installation
 
@@ -121,7 +121,7 @@ Accept SSL certificate warning (self-signed) and grant microphone permissions.
 
 ### Basic Voice Input
 
-In your MCP client (Claude Code CLI, etc.):
+In your AI agent CLI:
 ```
 You: "Get my next request via voice"
 ```
@@ -284,9 +284,9 @@ curl -k https://localhost:8766/health
 
 ### MCP Server Not Loaded
 
-**Restart Claude Code CLI:**
+**Restart your AI agent CLI:**
 ```bash
-# Exit and restart claude command
+# Exit and restart your AI command
 ```
 
 **Check .mcp.json path:**
