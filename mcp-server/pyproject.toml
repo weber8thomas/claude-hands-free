@@ -1,16 +1,79 @@
 [project]
-name = "claude-voice-mcp"
-version = "1.0.0"
-description = "MCP server for voice input via browser"
+name = "mcp-hands-free"
+version = "0.1.0"
+description = "Universal hands-free voice input MCP server for AI assistants using Whisper speech-to-text"
+readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Thomas Weber", email = "weber8thomas@gmail.com"}
+]
+maintainers = [
+    {name = "Thomas Weber", email = "weber8thomas@gmail.com"}
+]
+keywords = [
+    "mcp",
+    "voice",
+    "speech-to-text",
+    "whisper",
+    "ai",
+    "assistant",
+    "hands-free",
+    "accessibility"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "mcp>=1.1.0",
     "httpx>=0.27.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.1",
+    "ruff>=0.1.9",
+    "mypy>=1.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/theagentattic/mcp-hands-free"
+Documentation = "https://github.com/theagentattic/mcp-hands-free#readme"
+Repository = "https://github.com/theagentattic/mcp-hands-free"
+Issues = "https://github.com/theagentattic/mcp-hands-free/issues"
+Changelog = "https://github.com/theagentattic/mcp-hands-free/blob/main/CHANGELOG.md"
+
 [project.scripts]
-claude-voice-mcp = "claude_voice_mcp:run"
+mcp-hands-free = "claude_voice_mcp:run"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatchling.build.targets.wheel]
+packages = ["src/claude_voice_mcp"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
