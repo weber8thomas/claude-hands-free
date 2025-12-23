@@ -1,6 +1,15 @@
 # MCP Hands-Free - Voice Input MCP Server
 
+[![CI](https://github.com/theagentattic/mcp-hands-free/actions/workflows/ci.yml/badge.svg)](https://github.com/theagentattic/mcp-hands-free/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/mcp-hands-free.svg)](https://badge.fury.io/py/mcp-hands-free)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 > **"Why type when you can talk?"** - Every developer eating pizza while coding
+
+![Demo](docs/screenshots/demo.gif)
+*Voice input in action - speak to your AI assistant hands-free*
 
 ## Why This Exists
 
@@ -18,6 +27,16 @@ Perfect for when your hands are busy, tired, dirty, or just... somewhere else.
 ---
 
 Universal hands-free voice input for MCP-compatible AI assistants (Claude Code CLI, Gemini, Qwen, etc.) using Whisper speech-to-text.
+
+## Screenshots
+
+### Browser Interface
+![Browser Voice Input Interface](docs/screenshots/browser-interface.png)
+*Clean, minimal browser interface for voice recording*
+
+### Terminal Integration
+![CLI Integration](docs/screenshots/cli-usage.png)
+*Seamless integration with your MCP-compatible AI agent*
 
 ## Architecture
 
@@ -41,6 +60,9 @@ MCP Server
 MCP Client
   └─ receives transcript as user input
 ```
+
+![Architecture Diagram](docs/screenshots/architecture-diagram.png)
+*Visual representation of the data flow*
 
 ## Features
 

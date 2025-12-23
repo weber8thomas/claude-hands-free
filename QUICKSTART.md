@@ -1,116 +1,121 @@
-# Quick Start Guide - Claude Voice
+# Quick Start Guide - MCP Hands-Free
 
-Get voice interaction with Claude Code running in 5 minutes!
+Get voice interaction with your MCP-compatible AI running in 5 minutes!
 
 ## TL;DR
 
 ```bash
-# Server (Proxmox LXC)
-cd /workspace/proxmox-services/claude-voice
-./start-server.sh
+# Server
+cd /path/to/mcp-hands-free
+pip3 install -r requirements.txt
+python3 server.py
 
-# MacBook
-brew install sox
-./client-macos.sh http://server-ip:8765
+# Client (Browser)
+# Open https://your-server:8766/static/voice-input.html
 ```
 
 ## Step-by-Step
 
-### 1. Start Whisper (Server)
+### 1. Start Whisper Service
+
+Using Docker (recommended):
 
 ```bash
-cd /workspace/proxmox-services/whisper
-cp .env.example .env
-docker-compose up -d
+docker run -d \
+  --name whisper \
+  -p 10300:10300 \
+  rhasspy/wyoming-faster-whisper \
+  --model base \
+  --language en
 
 # Verify
 docker logs whisper
 curl http://localhost:10300/
 ```
 
-### 2. Verify Piper is Running (Server)
+Or install locally following [Wyoming Whisper docs](https://github.com/rhasspy/wyoming-faster-whisper).
+
+### 2. Start FastAPI Server
 
 ```bash
-cd /workspace/proxmox-services/piper
-docker-compose ps
-
-# Should show piper running
-# If not: docker-compose up -d
-```
-
-### 3. Start Voice Server (Server)
-
-```bash
-cd /workspace/proxmox-services/claude-voice
-./start-server.sh
+cd /path/to/mcp-hands-free
+pip3 install -r requirements.txt
+python3 server.py
 ```
 
 You should see:
 ```
-✅ Starting server on http://0.0.0.0:8765
+✅ Starting server on https://0.0.0.0:8766
 INFO: Started server process
 ```
 
-### 4. Install Client (MacBook)
+### 3. Configure MCP Client
 
-```bash
-# Install sox for recording
-brew install sox
+Add to your `.mcp.json` (or MCP client configuration):
 
-# Download client script (if not already on your Mac)
-# Either copy via scp or create locally
+```json
+{
+  "mcpServers": {
+    "voice-input": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "/path/to/mcp-hands-free/mcp-server",
+        "claude-voice-mcp"
+      ],
+      "env": {
+        "VOICE_SERVER_URL": "https://your-server:8766"
+      }
+    }
+  }
+}
 ```
 
-### 5. Connect and Talk!
+Replace `/path/to/mcp-hands-free` with your actual path.
 
-```bash
-# On MacBook
-./client-macos.sh http://your-server-ip:8765
+### 4. Open Browser Interface
+
+Navigate to:
+```
+https://your-server:8766/static/voice-input.html
 ```
 
-**Usage:**
-1. Press **Enter** to start recording
-2. Speak your question
-3. Press **Ctrl+C** to stop and send
-4. Listen to Claude's response
-5. Repeat - conversation continues!
+Accept the self-signed certificate warning and grant microphone permissions.
+
+### 5. Use Voice Input!
+
+In your AI agent CLI:
+
+```
+You: "Get my next request via voice"
+```
+
+The browser will automatically start recording, you speak, and your AI receives the transcript.
 
 ## First Conversation
 
 ```
-You: "Hi Claude, can you list the files in the current directory?"
-
-🎤 Recording...
-✅ Recording saved
-📤 Sending to Claude...
-✅ Response received
-🔊 Playing response...
-
-Claude: "I see several files including server.py, client-macos.sh,
-        and requirements.txt. Would you like me to explain what
-        each file does?"
-
-You: "Yes, tell me about server.py"
-
-[Continues conversation with context...]
+You: Get my next request via voice
+[Browser automatically starts recording]
+You: [speaking] "List the files in the current directory"
+AI: Voice input received: "List the files in the current directory"
+[AI processes the request using available tools]
 ```
 
-## Testing Without Client
+## Testing the API
 
-Test the API directly:
+Test endpoints directly:
 
 ```bash
-# Record a test message
-sox -d -r 16000 -c 1 test.wav trim 0 5
+# Test voice request creation
+curl -X POST https://localhost:8766/api/request-voice \
+  -H "Content-Type: application/json" \
+  -d '{"language": "en"}' \
+  -k
 
-# Send to server
-curl -X POST \
-  -F "audio=@test.wav" \
-  http://localhost:8765/voice \
-  -o response.wav
-
-# Play response
-afplay response.wav
+# Check health
+curl https://localhost:8766/health -k
 ```
 
 ## Troubleshooting
@@ -119,68 +124,72 @@ afplay response.wav
 
 ```bash
 # Check ports are free
-lsof -i :8765
-lsof -i :10300
-lsof -i :10200
+lsof -i :8766  # FastAPI server
+lsof -i :10300 # Whisper service
 
-# Check services
-docker ps | grep -E "whisper|piper"
+# Check Whisper is running
+docker ps | grep whisper
+curl http://localhost:10300/
 ```
 
-### Client can't connect
+### Browser can't connect
 
 ```bash
 # Test server health
-curl http://server-ip:8765/health
+curl https://your-server:8766/health -k
 
-# Check firewall
-# On server: sudo ufw allow 8765/tcp
+# Check firewall (if applicable)
+# sudo ufw allow 8766/tcp
 ```
 
-### No audio playback (Mac)
+### Browser can't access microphone
+
+- Ensure you're using **HTTPS** (browsers require it for microphone access)
+- Check browser permissions: Settings → Privacy → Microphone
+- Accept the self-signed certificate warning
+
+### MCP server not loading
 
 ```bash
-# Check afplay works
-afplay /System/Library/Sounds/Ping.aiff
+# Verify path in .mcp.json is correct
+ls /path/to/mcp-hands-free/mcp-server/pyproject.toml
 
-# Check downloaded audio file
-file response.wav
-# Should show: WAVE audio, 22050 Hz, mono
+# Restart your MCP client
+# The MCP server is loaded when your AI agent CLI starts
 ```
 
-### Recording doesn't work (Mac)
+### Voice input times out
 
-```bash
-# Test sox
-sox -d test.wav trim 0 3
-
-# If fails, grant microphone permission:
-# System Settings → Privacy & Security → Microphone → Terminal
-```
+- Ensure browser interface is open and active
+- Check browser console for errors (F12 → Console)
+- Verify network connectivity between browser and server
+- Check that Whisper service is running and responding
 
 ## What's Next?
 
-- **Type `new`** to start a fresh conversation
-- **Type `quit`** to exit
-- **Close client** - your session persists! Restart to continue
+- Try different languages: `get_voice_input(language="fr")`
+- Adjust timeout: `get_voice_input(timeout=120)`
+- Combine with other MCP tools for powerful workflows
 
-## Architecture Reminder
+## Architecture
 
 ```
-Your MacBook:
-  [Microphone] → sox → WAV file
-       ↓ HTTP POST
-  Your Server:
-    Whisper → "text"
-       ↓
-    Claude Code CLI → response text
-       ↓
-    Piper → WAV audio
-       ↓ HTTP Response
-Your MacBook:
-  [Speakers] ← afplay ← WAV file
+MCP Client (Claude Code, Gemini, etc.)
+  ↓ calls get_voice_input()
+MCP Server (stdio)
+  ↓ HTTP POST
+FastAPI Server
+  ↓ stores request
+Browser Interface
+  ↓ polls for requests
+  ↓ records audio
+  ↓ submits audio
+FastAPI Server
+  ↓ sends to Whisper
+Whisper Service (Wyoming)
+  ↓ transcribes
+MCP Client
+  └─ receives transcript
 ```
 
-Session state maintained server-side in `/tmp/claude-voice/sessions/`
-
-Enjoy talking to Claude! 🎤
+Enjoy hands-free AI interactions!
